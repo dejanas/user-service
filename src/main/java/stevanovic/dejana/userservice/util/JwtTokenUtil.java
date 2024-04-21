@@ -4,13 +4,11 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-import stevanovic.dejana.userservice.model.UserData;
+import stevanovic.dejana.userservice.config.JwtSecretKey;
+import stevanovic.dejana.userservice.model.User;
 import stevanovic.dejana.userservice.repository.UserRepository;
 
-import javax.crypto.SecretKey;
-import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,16 +16,11 @@ import java.util.function.Function;
 
 @Component
 @RequiredArgsConstructor
-public class JwtTokenUtil implements Serializable {
-
-    private static final long serialVersionUID = -2550185165626007488L;
+public class JwtTokenUtil {
 
     public static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60;
 
     private final UserRepository userRepository;
-
-    //TODO: should be stored securely
-    private final SecretKey secretKey = Jwts.SIG.HS512.key().build();
 
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
@@ -44,7 +37,7 @@ public class JwtTokenUtil implements Serializable {
 
     private Claims getAllClaimsFromToken(String token) {
         return Jwts.parser()
-                .verifyWith(secretKey)
+                .verifyWith(JwtSecretKey.getKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -55,23 +48,22 @@ public class JwtTokenUtil implements Serializable {
         return expiration.before(new Date());
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
-        UserData userData = userRepository.findByUsername(userDetails.getUsername());
-        Object[] roles = userData.getRole().split(",");
+        Object[] roles = user.getRole().split(",");
         claims.put("Roles", roles);
-        return doGenerateToken(claims, userDetails.getUsername());
+        return doGenerateToken(claims, user.getUsername());
     }
 
     private String doGenerateToken(Map<String, Object> claims, String subject) {
-
         return Jwts.builder().setClaims(claims).setSubject(subject).setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY * 1000))
-                .signWith(SignatureAlgorithm.HS512, secretKey).compact();
+                .signWith(SignatureAlgorithm.HS512, JwtSecretKey.getKey()).compact();
     }
 
     public Boolean validateToken(String token) {
-        final String username = getUsernameFromToken(token);
-        return (userRepository.findByUsername(username) != null && !isTokenExpired(token));
+        String formattedToken = token.replace("Bearer ", "");
+        final String username = getUsernameFromToken(formattedToken);
+        return (userRepository.findByUsername(username) != null && !isTokenExpired(formattedToken));
     }
 }
