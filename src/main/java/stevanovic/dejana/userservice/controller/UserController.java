@@ -44,7 +44,7 @@ public class UserController {
         User user = new User();
         user.setUsername(authRequest.getUsername());
         user.setPassword(passwordEncoder.encode(authRequest.getPassword()));
-        user.setRole(Role.USER.name());
+        user.setRoles(Role.USER.name() + "," + Role.ADMIN.name());
         userRepository.save(user);
         return ResponseEntity.ok("User registered successfully");
     }
@@ -52,6 +52,15 @@ public class UserController {
     @PostMapping("/validate-token")
     public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String jwtToken) {
         if (jwtUtil.validateToken(jwtToken)) {
+            return ResponseEntity.ok("Token validated successfully");
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+    @PostMapping("/admin/validate-token")
+    public ResponseEntity<?> validateAdminToken(@RequestHeader("Authorization") String jwtToken) {
+        if (jwtUtil.validateAdminToken(jwtToken)) {
             return ResponseEntity.ok("Token validated successfully");
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

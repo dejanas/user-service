@@ -6,11 +6,14 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import stevanovic.dejana.userservice.config.JwtSecretKey;
+import stevanovic.dejana.userservice.model.Role;
 import stevanovic.dejana.userservice.model.User;
 import stevanovic.dejana.userservice.repository.UserRepository;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -24,6 +27,19 @@ public class JwtTokenUtil {
 
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
+    }
+
+    public List<String> getRolesFromToken(String jwtToken) {
+        List<String> roles = new ArrayList<>();
+
+        Claims claims = getAllClaimsFromToken(jwtToken);
+
+        if (claims.containsKey("roles")) {
+            List<String> rolesClaim = claims.get("roles", ArrayList.class);
+            roles.addAll(rolesClaim);
+        }
+
+        return roles;
     }
 
     public Date getExpirationDateFromToken(String token) {
@@ -50,20 +66,30 @@ public class JwtTokenUtil {
 
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
-        Object[] roles = user.getRole().split(",");
-        claims.put("Roles", roles);
+        Object[] roles = user.getRoles().split(",");
+        claims.put("roles", roles);
         return doGenerateToken(claims, user.getUsername());
     }
 
+    //TODO: switch deprecated methods
     private String doGenerateToken(Map<String, Object> claims, String subject) {
         return Jwts.builder().setClaims(claims).setSubject(subject).setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY * 1000))
                 .signWith(SignatureAlgorithm.HS512, JwtSecretKey.getKey()).compact();
     }
 
+    //TODO: refactor
     public Boolean validateToken(String token) {
         String formattedToken = token.replace("Bearer ", "");
         final String username = getUsernameFromToken(formattedToken);
         return (userRepository.findByUsername(username) != null && !isTokenExpired(formattedToken));
+    }
+
+    public Boolean validateAdminToken(String token) {
+        String formattedToken = token.replace("Bearer ", "");
+        final String username = getUsernameFromToken(formattedToken);
+        return (userRepository.findByUsername(username) != null &&
+                !isTokenExpired(formattedToken) &&
+                getRolesFromToken(formattedToken).contains(Role.ADMIN.name()));
     }
 }

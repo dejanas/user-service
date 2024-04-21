@@ -12,7 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "user")
+@Table(name = "user_data")
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder(toBuilder = true)
@@ -21,11 +21,10 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Column(unique = true)
     private String username;
-
+    @Column
     private String password;
-
-    private String role;
+    @Column
+    private String roles;
 }
