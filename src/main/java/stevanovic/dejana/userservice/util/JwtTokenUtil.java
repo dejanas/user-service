@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import stevanovic.dejana.userservice.model.UserData;
 import stevanovic.dejana.userservice.repository.UserRepository;
 
+import javax.crypto.SecretKey;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
@@ -26,7 +27,7 @@ public class JwtTokenUtil implements Serializable {
     private final UserRepository userRepository;
 
     //TODO: should be stored securely
-    private final String secretKey =  "mysecretkey";
+    private final SecretKey secretKey = Jwts.SIG.HS512.key().build();
 
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
@@ -42,7 +43,11 @@ public class JwtTokenUtil implements Serializable {
     }
 
     private Claims getAllClaimsFromToken(String token) {
-        return Jwts.parser().setSigningKey(secretKey).build().parseClaimsJws(token).getBody();
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     private Boolean isTokenExpired(String token) {
@@ -54,7 +59,7 @@ public class JwtTokenUtil implements Serializable {
         Map<String, Object> claims = new HashMap<>();
         UserData userData = userRepository.findByUsername(userDetails.getUsername());
         Object[] roles = userData.getRole().split(",");
-        claims.put("Roles",roles);
+        claims.put("Roles", roles);
         return doGenerateToken(claims, userDetails.getUsername());
     }
 
@@ -65,8 +70,8 @@ public class JwtTokenUtil implements Serializable {
                 .signWith(SignatureAlgorithm.HS512, secretKey).compact();
     }
 
-    public Boolean validateToken(String token, UserDetails userDetails) {
+    public Boolean validateToken(String token) {
         final String username = getUsernameFromToken(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        return (userRepository.findByUsername(username) != null && !isTokenExpired(token));
     }
 }

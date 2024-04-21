@@ -1,14 +1,13 @@
 package stevanovic.dejana.userservice.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import stevanovic.dejana.userservice.dto.AuthRequest;
@@ -20,11 +19,11 @@ import stevanovic.dejana.userservice.service.UserDetailsServiceImpl;
 import stevanovic.dejana.userservice.util.JwtTokenUtil;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/user")
 @RequiredArgsConstructor
 public class UserController {
 
-    private final AuthenticationManager authenticationManager;
+    //    private final AuthenticationManager authenticationManager;
     private final JwtTokenUtil jwtUtil;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -32,12 +31,6 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest authRequest) throws Exception {
-        try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword()));
-        } catch (BadCredentialsException e) {
-            throw new Exception("Incorrect username or password", e);
-        }
-
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authRequest.getUsername());
         final String jwt = jwtUtil.generateToken(userDetails);
         return ResponseEntity.ok(new AuthResponse(jwt));
@@ -53,6 +46,15 @@ public class UserController {
         user.setPassword(passwordEncoder.encode(authRequest.getPassword()));
         user.setRole(Role.USER.name());
         userRepository.save(user);
-        return ResponseEntity.ok("UserData registered successfully");
+        return ResponseEntity.ok("User registered successfully");
+    }
+
+    @PostMapping("/validate-token")
+    public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String jwtToken) {
+        if (jwtUtil.validateToken(jwtToken)) {
+            return ResponseEntity.ok("Token validated successfully");
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
     }
 }
