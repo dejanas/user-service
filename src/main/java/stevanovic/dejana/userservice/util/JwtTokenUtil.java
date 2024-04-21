@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import stevanovic.dejana.userservice.config.JwtSecretKey;
 import stevanovic.dejana.userservice.model.Role;
-import stevanovic.dejana.userservice.model.User;
+import stevanovic.dejana.userservice.model.UserData;
 import stevanovic.dejana.userservice.repository.UserRepository;
 
 import java.util.ArrayList;
@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 @Component
@@ -64,7 +65,7 @@ public class JwtTokenUtil {
         return expiration.before(new Date());
     }
 
-    public String generateToken(User user) {
+    public String generateToken(UserData user) {
         Map<String, Object> claims = new HashMap<>();
         Object[] roles = user.getRoles().split(",");
         claims.put("roles", roles);
@@ -90,6 +91,16 @@ public class JwtTokenUtil {
         final String username = getUsernameFromToken(formattedToken);
         return (userRepository.findByUsername(username) != null &&
                 !isTokenExpired(formattedToken) &&
+                getRolesFromToken(formattedToken).contains(Role.ADMIN.name()));
+    }
+
+    public Boolean validateOwnerToken(String token, Long userId) {
+        String formattedToken = token.replace("Bearer ", "");
+        final String username = getUsernameFromToken(formattedToken);
+        Optional<UserData> userById = userRepository.findById(userId);
+
+        return ((userById.isPresent() && username.equals(userById.get().getUsername()) &&
+                !isTokenExpired(formattedToken)) ||
                 getRolesFromToken(formattedToken).contains(Role.ADMIN.name()));
     }
 }

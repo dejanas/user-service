@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import stevanovic.dejana.userservice.dto.AuthRequest;
 import stevanovic.dejana.userservice.model.Role;
-import stevanovic.dejana.userservice.model.User;
+import stevanovic.dejana.userservice.model.UserData;
 import stevanovic.dejana.userservice.repository.UserRepository;
 import stevanovic.dejana.userservice.util.JwtTokenUtil;
 
@@ -28,7 +28,7 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest authRequest) {
-        final User user = userRepository.findByUsername(authRequest.getUsername());
+        final UserData user = userRepository.findByUsername(authRequest.getUsername());
         final String jwt = jwtUtil.generateToken(user);
 
         HttpHeaders headers = new HttpHeaders();
@@ -41,18 +41,18 @@ public class UserController {
         if (userRepository.findByUsername(authRequest.getUsername()) != null) {
             return ResponseEntity.badRequest().body("Username is already taken");
         }
-        User user = new User();
+        UserData user = new UserData();
         user.setUsername(authRequest.getUsername());
         user.setPassword(passwordEncoder.encode(authRequest.getPassword()));
         user.setRoles(Role.USER.name() + "," + Role.ADMIN.name());
         userRepository.save(user);
-        return ResponseEntity.ok("User registered successfully");
+        return ResponseEntity.ok("UserData registered successfully");
     }
 
     @PostMapping("/validate-token")
     public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String jwtToken) {
         if (jwtUtil.validateToken(jwtToken)) {
-            return ResponseEntity.ok("Token validated successfully");
+            return ResponseEntity.ok("User token validated successfully");
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -61,7 +61,17 @@ public class UserController {
     @PostMapping("/admin/validate-token")
     public ResponseEntity<?> validateAdminToken(@RequestHeader("Authorization") String jwtToken) {
         if (jwtUtil.validateAdminToken(jwtToken)) {
-            return ResponseEntity.ok("Token validated successfully");
+            return ResponseEntity.ok("Admin token validated successfully");
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+    @PostMapping("/admin/validate-owner-token")
+    public ResponseEntity<?> validateOwnerToken(@RequestHeader("Authorization") String jwtToken,
+                                                @RequestBody Long userId) {
+        if (jwtUtil.validateOwnerToken(jwtToken, userId)) {
+            return ResponseEntity.ok("Owner token validated successfully");
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
